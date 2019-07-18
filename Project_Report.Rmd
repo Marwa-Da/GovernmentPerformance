@@ -1,0 +1,799 @@
+---
+title: "Islam and Arab reaility analysis"
+author: "Manal Farhoudah, Marwa Darweesh, Haya Al Betar, Nojoud Al Jalad"
+date: "1 June 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = TRUE,
+	message = FALSE,
+	warning = FALSE
+)
+```
+
+# abstruct
+
+in this project, we analyse the arabic and Islamic people behaviour and predict the people satisfied about their goverment based on big data set has been collected by ICPSR university.
+
+
+
+# Introduction
+
+The Carnegie Middle East Governance and Islam Data Set includes both individual-level and country-level variables. Data on individual-level
+variables are drawn from 56 surveys carried out in fifteen Arab countries, Turkey and Iran in the period between 1998 and 2014.
+
+a total of 82,489 men and women were surveyed. Almost all of the surveys involved face-toface interviews.
+
+the total question is 290 question cotain diffrent domain.
+we filter the number of variable (question) as we need and deal with all observation 82,489
+
+
+# Data set description 
+
+the data set variable is the question  which was asked in the diffrent survey and it  descripe different social and politicl domain and it is diveded into multible sector (Demographic Variables, General Topics,Political Evaluations and Attitudes,Elections and Political Participation,Political Voice and Media, Democracy,Religion, Society and Culture,Personal Religiosity,Identity, Nationalism and International Relations) 
+each sector was represented by group of question has sequence number, and each question has multiple choise was stored as factor and sometime as number 
+
+some question has asked in one survey and has not asked in another so it has NA value  where no answer about it.
+
+
+# what we do 
+
+we divide the data set into multiple division , in each section we answer about sum question and explore the relation between variable which reflect the Islamic and arab people understand in diffrent issue like women respect, Neighbors ...
+
+the mian step we have done 
+
+1. Exploratory Data Analysis
+  - Feature selection 
+  - Visualizing data distributions
+  - Treating Missing values
+  - Working with Continuous and Categorical Variables
+2. Applying association rule
+3. Prediction the People who are satisfied with the government 
+
+
+## 1. Exploratory Data Analysis 
+
+first of all we analyse the data set by select the set of important feature, visulize the view about data, and cleaning the data.  
+
+
+### 1.1 Feature selection
+
+Because of the big size of the data set, we reduse the number of variable and select the important feature according to the algorithm which we want to apply and the question which we want to find the answer about it.
+
+so we have a set of data frame, each of them has been selected manually after 
+we understand all data set variable and used to process a specific task.
+
+we use **dplyr library** select function to select our feature 
+
+```{r a, echo=FALSE}
+library(foreign)
+library(ggplot2)
+library(stats)
+library(base)
+library(Matrix)
+library(arules)
+library(dplyr)
+
+#library(dplyr)
+all_dataset <- read.dta("middle east and islam dataset.dta")
+my_dataset <- read.dta("MEIdataset.dta")
+
+# country
+my_dataset$MCOUNTRY  = discretize(my_dataset$MCOUNTRY, 
+                                         method = 'frequency', 
+                                         categories = 17,
+                                         labels = c('Jordan', 'Palestine', 'Algeria', 'Morocco','Kuwait','Lebanon','Yemen','Iraq','Egypt','Saudi Arabia','Iran','Turkey','Bahrain','Qatar','Sudan','Tunisia','Libya'))
+# sex
+my_dataset$M101 = discretize(my_dataset$M101, 
+                                 method = 'frequency', 
+                                 categories = 5,
+                                 labels = c('Male', 'Female', 'Not clear', 'Dont know','Declineto answer'))
+# Age
+my_dataset$M102 = discretize(my_dataset$M102, 
+                             method = 'frequency', 
+                             categories = 7,
+                             labels = c('A18-24', 'A25-34', 'A35-44','A45-54', 'A55-64','A65-74','A75+'))
+# education Level
+my_dataset$M103 = discretize(my_dataset$M103, 
+                             method = 'frequency', 
+                             categories =8,
+                           labels = c('Illiterate', 'Primary', 'Secondary','BA', 'MA','Not clear','Dont know','Decline to answer'))
+# Marital Status
+my_dataset$M104 = discretize(my_dataset$M104, 
+                             method = 'frequency', 
+                             categories =6,
+                             labels = c('Single', 'Married', 'Other','Not clear', 'Dont know','Decline to answer'))
+# Employment status
+my_dataset$M105 = discretize(my_dataset$M105, 
+                             method = 'frequency', 
+                             categories =6,
+                             labels = c('Employed', 'Unemployed', 'Other','Not clear', 'Dont know','Decline to answer'))
+# Employment Sector
+my_dataset$M106 = discretize(my_dataset$M106, 
+                             method = 'frequency', 
+                             categories =7,
+                             labels = c('Public', 'Private', 'Other','Not interested','Not clear', 'Dont know','Decline to answer'))
+# Individual Monthly Income
+my_dataset$M107 = discretize(my_dataset$M107, 
+                             method = 'frequency', 
+                             categories =5,
+                             labels = c('First quintile', 'Second quintile', 'Third quintile','Fourth quintile','Fifth quintile')) 
+# Satisfaction with Economic Situation of Household
+my_dataset$M108 = discretize(my_dataset$M108, 
+                             method = 'frequency', 
+                             categories =8,
+                             labels = c('Very Dissatisfied', 'Dissatisfied', 'Neither Dissatisfied Satisfied','Satisfied','Very Satisfied','Not clear', 'Don t know','Decline to answer')) 
+# Religion
+my_dataset$M109 = discretize(my_dataset$M109, 
+                             method = 'frequency', 
+                             categories =12,
+                             labels = c('Muslim', 'Christian', 'Druze','Hindu','Jew','Zoroastrian','Other','Bahai','Not asked','Not clear', 'Dont know','Decline to answer')) 
+# Trust in People
+my_dataset$M201 = discretize(my_dataset$M201, 
+                             method = 'frequency', 
+                             categories =6,
+                             labels = c('Most people trusted', 'Some trusted some cannot', 'Most cannot trusted','Not clear', 'Don t know','Decline to answer')) 
+# Free Choice
+my_dataset$M202 = discretize(my_dataset$M202, 
+                             method = 'frequency', 
+                             categories =7,
+                             labels = c('Very much', 'Some', 'A little','Very little','Not clear', 'Don t know','Decline to answer'))
+#Satisfaction with Life
+my_dataset$M203 = discretize(my_dataset$M203, 
+                             method = 'frequency', 
+                             categories =8,
+                             labels = c('Very Dissatisfied', 'Dissatisfied', 'Neither Satisfied Dissatisfied','Satisfied','Very Satisfied','Not clear', 'Don t know','Decline to answer'))
+# Importance of Certain Aspects of Life
+ # A family
+my_dataset$M204A = discretize(my_dataset$M204A, 
+                             method = 'frequency', 
+                             categories =7,
+                             labels = c('Very Important', 'Rather Important', 'Not very important','Not important at all','Not clear', 'Don t know','Decline to answer'))
+ # Politics
+my_dataset$M204B = discretize(my_dataset$M204B, 
+                              method = 'frequency', 
+                              categories =7,
+                              labels = c('Very Important', 'Rather Important', 'Not very important','Not important at all','Not clear', 'Don t know','Decline to answer'))
+ # work 
+my_dataset$M204C = discretize(my_dataset$M204C, 
+                              method = 'frequency', 
+                              categories =7,
+                              labels = c('Very Important', 'Rather Important', 'Not very important','Not important at all','Not clear', 'Don t know','Decline to answer'))
+ # Reliogion
+my_dataset$M204D = discretize(my_dataset$M204D, 
+                              method = 'frequency', 
+                              categories =7,
+                              labels = c('Very Important', 'Rather Important', 'Not very important','Not important at all','Not clear', 'Don t know','Decline to answer'))
+ #society
+my_dataset$M204E = discretize(my_dataset$M204E, 
+                              method = 'frequency', 
+                              categories =7,
+                              labels = c('Very Important', 'Rather Important', 'Not very important','Not important at all','Not clear', 'Don t know','Decline to answer'))
+# trible
+my_dataset$M204F = discretize(my_dataset$M204F, 
+                              method = 'frequency', 
+                              categories =7,
+                              labels = c('Very Important', 'Rather Important', 'Not very important','Not important at all','Not clear', 'Don t know','Decline to answer'))
+# Friend
+my_dataset$M204G = discretize(my_dataset$M204G, 
+                              method = 'frequency', 
+                              categories =7,
+                              labels = c('Very Important', 'Rather Important', 'Not very important','Not important at all','Not clear', 'Don t know','Decline to answer'))
+my_dataset$M204H = discretize(my_dataset$M204H, 
+                              method = 'frequency', 
+                              categories =7,
+                              labels = c('Very Important', 'Rather Important', 'Not very important','Not important at all','Not clear', 'Don t know','Decline to answer'))
+my_dataset$M204I = discretize(my_dataset$M204I, 
+                              method = 'frequency', 
+                              categories =7,
+                              labels = c('Very Important', 'Rather Important', 'Not very important','Not important at all','Not clear', 'Don t know','Decline to answer'))
+# Trust in Institutions
+ # mosque
+my_dataset$M301F = discretize(my_dataset$M301F, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('great deal trust', 'Quite alot trust', 'little trust','Very little','None at all','Not clear', 'Don t know','Decline to answer'))
+ # TV
+my_dataset$M301H = discretize(my_dataset$M301H, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('great deal trust', 'Quite alot trust', 'little trust','Very little','None at all','Not clear', 'Don t know','Decline to answer'))
+ #Satellite TV
+my_dataset$M301I = discretize(my_dataset$M301I, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('great deal trust', 'Quite alot trust', 'little trust','Very little','None at all','Not clear', 'Don t know','Decline to answer'))
+ # Educational institutions
+my_dataset$M301J = discretize(my_dataset$M301J, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('great deal trust', 'Quite alot trust', 'little trust','Very little','None at all','Not clear', 'Don t know','Decline to answer'))
+ # fouqhas
+my_dataset$M301N = discretize(my_dataset$M301N, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('great deal trust', 'Quite alot trust', 'little trust','Very little','None at all','Not clear', 'Don t know','Decline to answer'))
+ # Electoral Participation 
+my_dataset$M401 = discretize(my_dataset$M401, 
+                             method = 'frequency', 
+                             categories =6,
+                             labels = c('No', 'Yes', 'Not eligible','Not clear', 'Don t know','Decline to answer'))
+ # Discussion of Politics
+my_dataset$M503 = discretize(my_dataset$M503, 
+                             method = 'frequency', 
+                             categories =6,
+                             labels = c('Frequently', 'Occasionally', 'Never','Not clear', 'Don t know','Decline to answer')) 
+#Interpretation of Islam
+my_dataset$M703B = discretize(my_dataset$M703B, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither Agree Disagree','Disagree','Strongly Disagree','Not clear', 'Don t know','Decline to answer')) 
+my_dataset$M703C = discretize(my_dataset$M703C, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither Agree Disagree','Disagree','Strongly Disagree','Not clear', 'Don t know','Decline to answer'))
+
+my_dataset$M703D = discretize(my_dataset$M703D, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither Agree Disagree','Disagree','Strongly Disagree','Not clear', 'Don t know','Decline to answer'))
+my_dataset$M703E = discretize(my_dataset$M703E, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither Agree Disagree','Disagree','Strongly Disagree','Not clear', 'Don t know','Decline to answer'))
+my_dataset$M703F = discretize(my_dataset$M703F, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither Agree Disagree','Disagree','Strongly Disagree','Not clear', 'Don t know','Decline to answer'))
+my_dataset$M703G = discretize(my_dataset$M703G, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither Agree Disagree','Disagree','Strongly Disagree','Not clear', 'Don t know','Decline to answer'))
+my_dataset$M703H = discretize(my_dataset$M703H, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither Agree Disagree','Disagree','Strongly Disagree','Not clear', 'Don t know','Decline to answer'))
+my_dataset$M703J = discretize(my_dataset$M703J, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither Agree Disagree','Disagree','Strongly Disagree','Not clear', 'Don t know','Decline to answer'))
+my_dataset$M703L = discretize(my_dataset$M703L, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither Agree Disagree','Disagree','Strongly Disagree','Not clear', 'Don t know','Decline to answer'))
+my_dataset$M703M = discretize(my_dataset$M703M, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither Agree Disagree','Disagree','Strongly Disagree','Not clear', 'Don t know','Decline to answer'))
+my_dataset$M703N = discretize(my_dataset$M703N, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither Agree Disagree','Disagree','Strongly Disagree','Not clear', 'Don t know','Decline to answer'))
+my_dataset$M703O = discretize(my_dataset$M703O, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither Agree Disagree','Disagree','Strongly Disagree','Not clear', 'Don t know','Decline to answer'))
+my_dataset$M703P = discretize(my_dataset$M703P, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither Agree Disagree','Disagree','Strongly Disagree','Not clear', 'Don t know','Decline to answer'))
+
+
+my_dataset$M703I = discretize(my_dataset$M703I, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither Agree Disagree','Disagree','Strongly Disagree','Not clear', 'Don t know','Decline to answer'))
+
+
+#Sacrifice for the Islamic Nation
+my_dataset$M705 = discretize(my_dataset$M705, 
+                              method = 'frequency', 
+                              categories =7,
+                              labels = c('Always', 'Most time', 'Few times','No','Not clear', 'Don t know','Decline to answer'))
+# Importance of Islamic Unity
+my_dataset$M707 = discretize(my_dataset$M707, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c(' Very important', 'Important', 'Somewhat important','Not important','Not at all','Not clear', 'Don t know','Decline to answer'))
+#Islamic World as the Political Identity of my Nation
+my_dataset$M708 = discretize(my_dataset$M708, 
+                             method = 'frequency', 
+                             categories =7,
+                             labels = c('Ranked1', 'Ranked2', 'Ranked3','Ranked4','Not clear', 'Dont know','Decline to answer'))
+# Attitudes Towards Women
+my_dataset$M710A = discretize(my_dataset$M710A, 
+                             method = 'frequency', 
+                             categories =8,
+                             labels = c('Strongly Agree', 'Agree', 'Neither','Disagree','Strongly Disagree','Not clear', 'Don t know','Decline to answer'))
+my_dataset$M710B = discretize(my_dataset$M710B, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither','Disagree','Strongly Disagree','Not clear', 'Don t know','Decline to answer'))
+my_dataset$M710C = discretize(my_dataset$M710C, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither','Disagree','Strongly Disagree','Not clear', 'Don t know','Decline to answer'))
+my_dataset$M710D = discretize(my_dataset$M710D, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither','Disagree','Strongly Disagree','Not clear', 'Dont know','Decline to answer'))
+my_dataset$M710E = discretize(my_dataset$M710E, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither','Disagree','Strongly Disagree','Not clear', 'Dont know','Decline to answer'))
+my_dataset$M710F = discretize(my_dataset$M710F, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither','Disagree','Strongly Disagree','Not clear', 'Dont know','Decline to answer'))
+my_dataset$M710G = discretize(my_dataset$M710G, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither','Disagree','Strongly Disagree','Not clear', 'Dont know','Decline to answer'))
+my_dataset$M710H = discretize(my_dataset$M710H, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither','Disagree','Strongly Disagree','Not clear', 'Dont know','Decline to answer'))
+my_dataset$M710I = discretize(my_dataset$M710I, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither','Disagree','Strongly Disagree','Not clear', 'Don t know','Decline to answer')) 
+my_dataset$M710J = discretize(my_dataset$M710J, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither','Disagree','Strongly Disagree','Not clear', 'Dont know','Decline to answer'))
+my_dataset$M710K = discretize(my_dataset$M710K, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither','Disagree','Strongly Disagree','Not clear', 'Dont know','Decline to answer'))
+my_dataset$M710L = discretize(my_dataset$M710L, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither','Disagree','Strongly Disagree','Not clear', 'Dont know','Decline to answer'))
+my_dataset$M710M = discretize(my_dataset$M710M, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither','Disagree','Strongly Disagree','Not clear', 'Dont know','Decline to answer'))
+my_dataset$M710N = discretize(my_dataset$M710N, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither','Disagree','Strongly Disagree','Not clear', 'Dont know','Decline to answer'))
+my_dataset$M710O = discretize(my_dataset$M710O, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither','Disagree','Strongly Disagree','Not clear', 'Dont know','Decline to answer'))
+my_dataset$M710P = discretize(my_dataset$M710P, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither','Disagree','Strongly Disagree','Not clear', 'Dont know','Decline to answer'))
+my_dataset$M710Q = discretize(my_dataset$M710Q, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither','Disagree','Strongly Disagree','Not clear', 'Dont know','Decline to answer'))
+my_dataset$M710R = discretize(my_dataset$M710R, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither','Disagree','Strongly Disagree','Not clear', 'Dont know','Decline to answer'))
+my_dataset$M710S = discretize(my_dataset$M710S, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither','Disagree','Strongly Disagree','Not clear', 'Dont know','Decline to answer'))
+my_dataset$M710T = discretize(my_dataset$M710T, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither','Disagree','Strongly Disagree','Not clear', 'Dont know','Decline to answer'))
+my_dataset$M710U = discretize(my_dataset$M710U, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither','Disagree','Strongly Disagree','Not clear', 'Dont know','Decline to answer'))
+my_dataset$M710V = discretize(my_dataset$M710V, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither','Disagree','Strongly Disagree','Not clear', 'Dont know','Decline to answer'))
+my_dataset$M710W = discretize(my_dataset$M710W, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither','Disagree','Strongly Disagree','Not clear', 'Dont know','Decline to answer'))
+my_dataset$M710X = discretize(my_dataset$M710X, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither','Disagree','Strongly Disagree','Not clear', 'Dont know','Decline to answer'))
+my_dataset$M710Y = discretize(my_dataset$M710Y, 
+                              method = 'frequency', 
+                              categories =8,
+                              labels = c('Strongly Agree', 'Agree', 'Neither','Disagree','Strongly Disagree','Not clear', 'Dont know','Decline to answer'))
+# Suitable Spouse
+my_dataset$M801A = discretize(my_dataset$M801A, 
+                              method = 'frequency', 
+                              categories =7,
+                              labels = c('Very Important', 'Somewhat Important', 'little Important','Not at all','Not clear', 'Dont know','Decline to answer')) 
+my_dataset$M801B = discretize(my_dataset$M801B, 
+                              method = 'frequency', 
+                              categories =7,
+                              labels = c('Very Important', 'Somewhat Important', 'little Important','Not at all','Not clear', 'Dont know','Decline to answer'))
+my_dataset$M802 = discretize(my_dataset$M802, 
+                              method = 'frequency', 
+                              categories =7,
+                              labels = c('Religious', 'Mixed', 'Not religious','Other','Not clear', 'Dont know','Decline to answer')) 
+my_dataset$M803 = discretize(my_dataset$M803, 
+                             method = 'frequency', 
+                             categories =8,
+                             labels = c('Very often', 'Often', 'Sometimes','Rarely','Never','Not clear', 'Dont know','Decline to answer'))
+#Mosque Attendance
+my_dataset$M804 = discretize(my_dataset$M804, 
+                             method = 'frequency', 
+                             categories =8,
+                             labels = c('Very often', 'Often', 'Sometimes','Rarely','Never','Not clear', 'Dont know','Decline to answer'))
+#Reading the Quran
+my_dataset$M805 = discretize(my_dataset$M805, 
+                             method = 'frequency', 
+                             categories =8,
+                             labels = c('Every day', 'Several times week', 'Sometimes','Rarely','I dont read','Not clear', 'Dont know','Decline to answer'))
+#Comfort from Religion
+my_dataset$M806 = discretize(my_dataset$M806, 
+                             method = 'frequency', 
+                             categories =7,
+                             labels = c('very much', 'Some', 'little','very little','Not clear', 'Dont know','Decline to answer'))
+#Religious Teachings in Life
+my_dataset$M807 = discretize(my_dataset$M807, 
+                             method = 'frequency', 
+                             categories =7,
+                             labels = c('Always', 'Sometimes', 'Rarely','Never','Not clear', 'Don t know','Decline to answer'))
+# Seeks Religious Counseling
+my_dataset$M808 = discretize(my_dataset$M808, 
+                             method = 'frequency', 
+                             categories =7,
+                             labels = c('Most often', 'Sometimes', 'Rarely','Never','Not clear', 'Don t know','Decline to answer'))
+#Most Important Affiliation
+my_dataset$M901A = discretize(my_dataset$M901A, 
+                             method = 'frequency', 
+                             categories =14,
+                             labels = c('Family', 'Locality', 'Region','country','Continent','Middle East','Arab World','Islamic World','The World','Other','Not clear', 'Dont know','Decline to answer','Not usable')) 
+my_dataset$M901B = discretize(my_dataset$M901B, 
+                              method = 'frequency', 
+                              categories =14,
+                              labels = c('Family', 'Locality', 'Region','country','Continent','Middle East','Arab World','Islamic World','The World','Other','Not clear', 'Dont know','Decline to answer','Not usable'))
+# Proud of Nationality
+my_dataset$M902 = discretize(my_dataset$M902, 
+                             method = 'frequency', 
+                             categories =7,
+                             labels = c('Very proud', 'Quite proud', 'Not very proud','Notproud at all','Not clear', 'Dont know','Decline to answer'))
+#Identity
+my_dataset$M903 = discretize(my_dataset$M903, 
+                             method = 'frequency', 
+                             categories =9,
+                             labels = c('Above country', 'Above Muslim', 'Above Arab','Above Christian','Above Kurd..','Other','Not clear', 'Dont know','Decline to answer'))
+# Nationalism: Neighbors
+my_dataset$M904A = discretize(my_dataset$M904A, 
+                             method = 'frequency', 
+                             categories =6,
+                             labels = c('dont mind', 'do mind','Not clear', 'Dont know','Decline to answer','Not usable')) 
+my_dataset$M904B = discretize(my_dataset$M904B, 
+                              method = 'frequency', 
+                              categories =6,
+                              labels = c('dont mind', 'do mind','Not clear', 'Dont know','Decline to answer','Not usable'))
+my_dataset$M904C = discretize(my_dataset$M904C, 
+                              method = 'frequency', 
+                              categories =6,
+                              labels = c('dont mind', 'do mind','Not clear', 'Dont know','Decline to answer','Not usable'))
+my_dataset$M904D = discretize(my_dataset$M904D, 
+                              method = 'frequency', 
+                              categories =6,
+                              labels = c('dont mind', 'do mind','Not clear', 'Dont know','Decline to answer','Not usable'))
+my_dataset$M904E = discretize(my_dataset$M904E, 
+                              method = 'frequency', 
+                              categories =6,
+                              labels = c('dont mind', 'do mind','Not clear', 'Dont know','Decline to answer','Not usable'))
+my_dataset$M904F = discretize(my_dataset$M904F, 
+                              method = 'frequency', 
+                              categories =6,
+                              labels = c('dont mind', 'do mind','Not clear', 'Dont know','Decline to answer','Not usable'))
+my_dataset$M904G = discretize(my_dataset$M904G, 
+                              method = 'frequency', 
+                              categories =6,
+                              labels = c('dont mind', 'do mind','Not clear', 'Dont know','Decline to answer','Not usable'))
+my_dataset$M904H = discretize(my_dataset$M904H, 
+                              method = 'frequency', 
+                              categories =6,
+                              labels = c('dont mind', 'do mind','Not clear', 'Dont know','Decline to answer','Not usable'))
+my_dataset$M904I = discretize(my_dataset$M904I, 
+                              method = 'frequency', 
+                              categories =6,
+                              labels = c('dont mind', 'do mind','Not clear', 'Dont know','Decline to answer','Not usable'))
+my_dataset$M904J = discretize(my_dataset$M904J, 
+                              method = 'frequency', 
+                              categories =6,
+                              labels = c('dont mind', 'do mind','Not clear', 'Dont know','Decline to answer','Not usable'))
+my_dataset$M904K = discretize(my_dataset$M904K, 
+                              method = 'frequency', 
+                              categories =6,
+                              labels = c('dont mind', 'do mind','Not clear', 'Dont know','Decline to answer','Not usable'))
+my_dataset$M904L = discretize(my_dataset$M904L, 
+                              method = 'frequency', 
+                              categories =6,
+                              labels = c('dont mind', 'do mind','Not clear', 'Dont know','Decline to answer','Not usable')) 
+my_dataset$M904M = discretize(my_dataset$M904M, 
+                              method = 'frequency', 
+                              categories =6,
+                              labels = c('dont mind', 'do mind','Not clear', 'Dont know','Decline to answer','Not usable')) 
+my_dataset$M904N = discretize(my_dataset$M904N, 
+                              method = 'frequency', 
+                              categories =6,
+                              labels = c('dont mind', 'do mind','Not clear', 'Dont know','Decline to answer','Not usable')) 
+my_dataset$M904O = discretize(my_dataset$M904O, 
+                              method = 'frequency', 
+                              categories =6,
+                              labels = c('dont mind', 'do mind','Not clear', 'Dont know','Decline to answer','Not usable')) 
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+
+Political_Ques <- all_dataset %>%
+  select(MCOUNTRY,M105:M108,M203,M204B,M204I,M301A:M301H,M301J,M301L,M301M,M301N,M301P,M302,M303A,M304,M401,M402B,M501:M503,M601O,M604)
+
+head(Political_Ques,3)
+
+
+```
+
+In some casses we just need some value of the variable values, so we apply filter function to keep the observation which has this value and remove other 
+
+```{r  }
+
+Political_train <- Political_Ques %>%
+  filter(M302 ==  "Very satisfied" | M302 ==  "Rather satisfied" |M302 == "Neither satisfied nor dissatisfied" | M302 ==  "Not very satisfied" | M302 ==  "Not at all satisfied" )
+
+
+head(Political_train,3)
+
+
+```
+
+### 1.2 Visualizing data distributions 
+we use visualisation to explore our data and discover the variable distribution with each other, so we generate diffrent graphs like : 
+
+#### 1.2.1 display the count of the Participants in the suvey by each country 
+
+we take a look about the count of pepole participation in these surveys by their country
+
+```{r  }
+
+ggplot(all_dataset) + 
+  geom_bar(mapping = aes(x = MCOUNTRY,fill=MCOUNTRY)) + xlab('The Country of survey')+
+  ylab('The Count')+
+  theme(
+    axis.text.x=element_text(angle=45,color='blue' ,size=12),
+    axis.title.x=element_text(angle=0, color='red',size = 18),
+    axis.title.y=element_text(angle=90, color='red', size = 18),
+    axis.text.y=element_text(angle=45, color='blue', face='bold', size=12)
+  )
+
+
+
+```
+
+
+
+#### 1.2.2 display the count of goverment satisfied 
+
+we display the people response about goverment satisfied question    
+
+```{r  }
+
+ggplot(all_dataset) + 
+     geom_bar(mapping = aes(x = M302,fill=M302))+ xlab('The goverment satisfied')+
+  ylab('The Count')+
+  theme(
+    axis.text.x=element_text(angle=45,color='blue' ,size=12),
+    axis.title.x=element_text(angle=0, color='red',size = 18),
+    axis.title.y=element_text(angle=90, color='red', size = 18),
+    axis.text.y=element_text(angle=0, color='blue', face='bold', size=12)
+  )
+
+
+```
+
+
+
+#### 1.2.3 display the goverment satisfied  by country
+
+we display the people response about goverment satisfied question distribution by country 
+
+```{r  }
+
+ggplot(data = all_dataset) +
+      geom_count(mapping = aes(x = M302, y = MCOUNTRY),color = 'purple') + xlab('The goverment satisfied')+
+  ylab('The country')+
+  theme( 
+    axis.text.x=element_text(angle=45,color='blue' ,size=12),
+    axis.title.x=element_text(angle=0, color='red',size = 18),
+    axis.title.y=element_text(angle=90, color='red', size = 18),
+    axis.text.y=element_text(angle=0, color='blue', size=12)
+   )
+
+
+```
+
+
+
+#### 1.2.4 display what the  goverment satisfied Participants  view about political leaders
+
+we display the relation between people response about goverment satisfied question and political leaders care about ordinary citizens question using  boxplot type
+
+
+```{r  }
+
+ggplot(data = all_dataset, mapping = aes(x = M302, y = M303A),color = 'red') +
+     geom_boxplot() + xlab('The goverment satisfied')+
+  ylab('The view about political leaders')+
+  theme(
+    axis.text.x=element_text(angle=45,color='red' ,size=12),
+    axis.title.x=element_text(angle=0, color='green',size = 18),
+    axis.title.y=element_text(angle=90, color='green', size = 18),
+    axis.text.y=element_text(angle=0, color='red', face='bold', size=12)
+  )
+
+
+
+```
+
+
+
+
+### 1.3 Treating Missing values
+
+our data set has been consisted from multiple suveys, so there are alot of question has not been asked in some suvey and the response of this question has been recorded as missing value  
+
+the data set has alot of missing value ,most of them for categorical variable ,so we can not replace this value by their median and we can not delet missing value because of their big count 
+
+we use machine learining to predict the missing value and imputing them by using 
+r mice package
+
+
+### 1.4 Working with Continuous and Categorical Variables  
+
+our data set variable is the question so that most of this variable is Categorical Variables with factor values like (agree , disagree , never agree ..)
+but there are some Continuous variables like age, and some question was recorded as nominal value 
+
+we use algorithmes do not work with Continuous variables like association rules, so we descrete all Continuous variables into Categorical Variables in these cases
+like this example : 
+
+```{r  }
+
+Political_Ques$M303A = discretize(Political_Ques$M303A, 
+                                   method = 'frequency', 
+                                   categories =8,
+                                   labels = c('Strongly Agree', 'Agree', 'Neither Agree Disagree','Disagree','Strongly Disagree','Not clear', 'Don’t know','Decline to answer'))
+
+
+```
+
+
+
+## 2. Applying association rule 
+
+In order to explore the relation between variable and discover hidden pattern in the data set we apply association rule 
+
+we have alot of rule that  explain the islamic and arabic people behaviour which was never seen by looking at data 
+
+we change  all continous variable into Categorical variable befor applying association rule 
+
+we divide the data set into multiple set and applying association rule to discover more rule 
+
+### 2.1 Applying association rule  on all data set 
+
+first, we applyed association rule on all data set and the result was a big number of rule, so that we try to divide data set and apply association rule again to mining diffrent rule 
+
+we use *arules* r library to mining the rule 
+
+```{r, message=FALSE, warning=FALSE}
+library(Matrix)
+library(arules)
+
+rules <- apriori(my_dataset,parameter=list(supp=.17, conf=.6, target="rules"))
+ #inspect(rules)
+
+
+
+```
+
+some of these rule : 
+
+1. {M109=Muslim,                                                                               
+       M204A=Very Important,                                                                      
+       M204C=Very Important,                                                                      
+       M204D=Very Important}          => {M201=Most cannot trusted} 0.1851277  0.6233061 1.3530500
+
+
+- which mean : 
+
+  Muslim people who are been very important of their family and work do not trust   in other people :)
+
+2. {M104=Married,                                                                              
+       M109=Muslim,                                                                               
+       M204A=Very Important,                                                                      
+       M204D=Very Important}          => {M902=Very proud}          0.1722411  0.6892403 1.9319949 
+       
+  - which mean :
+
+  Muslim Married people who are been very important of their family and religion   are very proud of their country nationality
+
+3. {M104=Married,                                                                              
+       M105=Employed,                                                                             
+       M109=Muslim}                   => {M101=Male}                0.2247815  0.7796981 1.5629393
+
+  - which mean : 
+    most of Employed Muslim are male
+
+4. {M101=Male,                                                                               
+       M201=Most cannot trusted,                                                                  
+       M904C=don’t mind}              => {M904B=don’t mind}         0.1960868  0.8758393 2.3007167 
+
+ - which mean : 
+
+   Male who cannot trusted in people and don’t mind to have People of different
+   race or color as  neighbors, don’t mind to have People Followers of other
+   religions as  neighbors
+
+### 2.2 Applying association rule to mining Attitudes Towards Women
+
+In order to know more about Islam and arab Attitudes Towards Women we select 
+the question which talk about women with another question which describe the religious and general people behaviour and applying association rule with them 
+
+
+```{r, message=FALSE, warning=FALSE}
+
+
+# women question
+women_Q <- my_dataset %>%
+  select(MCOUNTRY,M101: M108,M710A : M710Y,M801A: M808)
+
+# women rule 
+
+women_rules <- apriori(women_Q,parameter=list(supp=.17, conf=.6, target="rules"))
+
+
+```
+
+### 2.2 Applying association rule to discover relation between people 
+
+in order to discover the Neighbors relation and how people is trusted in each other we take this part of question and applying association rule 
+
+```{r, message=FALSE, warning=FALSE}
+
+
+# relation question
+relation_Q <- my_dataset %>%
+  select(MCOUNTRY,M101: M108,M201:M203,M301F: M708,M801A: M808,M904A: M904O)
+# relation rule 
+
+relation_rules <- apriori(relation_Q)
+
+```
+
+### 2.3  Applying association rule to discover Political view 
+
+in order to analyse people participating in Political life, people Trust in Institutions, we take this part of question and applying association rule 
+
+```{r, message=FALSE, warning=FALSE}
+
+
+# Political  question
+Political_Ques <- all_dataset %>%
+  select(MCOUNTRY,M105:M108,M203,M204B,M204I,M301A:M301H,M301J,M301L,M301M,M301N,M301P,M302,M303A,M304,M401,M402B,M501:M503,M601O,M604)
+
+# discretize M303A question
+
+Political_Ques$M303A = discretize(Political_Ques$M303A, 
+                                   method = 'frequency', 
+                                   categories =8,
+                                   labels = c('Strongly Agree', 'Agree', 'Neither Agree Disagree','Disagree','Strongly Disagree','Not clear', 'Don’t know','Decline to answer'))
+
+# Political rule 
+
+POl_rules <- apriori(Political_Ques,parameter=list(supp=.16, conf=.5, target="rules"))
+inspect(POl_rules)
+
+```
